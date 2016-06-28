@@ -1,0 +1,154 @@
+begin model
+	begin parameters
+		estrogen_out				10e-05	#Initial concentration of unbound estrogen outside the cell
+		estrogen_in					0		#Initial concentration of unbound estrogen inside the cell
+		
+		prot_t7_unbound				0	#Initial concentration of unbound T7RNAP-LBD
+		prot_t7_bound				0	#Initial concentration of T7RNAP-LBD bound to estrogen
+		
+		plas_reporter				1.5e-03		#Initial concentration of reporter plasmid
+		plas_reporter_t7_bound		0			#Initial concentration of t7 bound to the report plasmid
+		
+		#'Simple' Molecules
+		plas_sensor					4.0e-02		#Initial concentration of sensor plasmid
+		mrna_t7rnap					0			#Initial concentration of mRNA for T7RNAP-LBD/YFP
+		mrna_rfp					0			#Initial concentration of mRNA for RFP
+		prot_yfp					0			#Initial concentration of YFP protein
+		prot_rfp					0			#Initial concentration of RFP protein
+		
+		#Rate constants
+		k_estrogen					1.7e-02		#Rate based on permeability of estrogen to the cell membrane
+		k_estrogen_assoc			1.3e-02		#Rate at which estrogen binds to LBD of T7RNAP
+		k_estrogen_disassoc			1.2e-03		#Rate at which estrogen unbinds from LBD of T7RNAP
+		
+		k_mrna_t7rnap_synth			2.6e-02		#Rate based on ability of sensor plasmid to transcribe mRNA for T7RNAP-LBD and YFP
+		k_mrna_t7rnap_deg			4.3e-03		#Rate at which mRNA for T7RNAP-LBD and YFP degrade
+		k_mrna_rfp_synth			8.8e-02		#Rate at which mRNA RFP is made from reporter plasmid with T7RNAP bound to the promotor
+		k_mrna_rfp_deg				4.3e-03		#Rate at which mRNA RFP degrades
+		
+		k_prot_yfp_synth			9.0e02		#Rate at which YFP protein is synthesized from mRNA T7RNAP-LBD and YFP
+		k_prot_yfp_deg				8.3e-04		#Rate at which YFP protein degrades
+		k_prot_t7rnap_synth			9.0e02		#Rate at which T7RNAP LBD is synthesized from mRNA T7RNAP-LBD and YFP
+		k_prot_t7rnap_deg			9.7e-04		#Rate at which T7RNAP LBD degrades
+		k_prot_rfp_synth			9.0e02		#Rate at which RFP protein is made from RFP mRNA
+		k_prot_rfp_deg				8.3e-04		#Rate at which RFP protein degrades
+		
+		k_t7rnap_reporter_assoc		3.3e-01		#Rate at which T7RNAP w/ bound Estrogen binds to promotor on reporter plasmid
+		k_t7rnap_reporter_disassoc	1.0e-01		#Rate at which T7RNAP w/ bound Estrogen unbinds from promotor on reporter plasmid
+	end parameters
+
+	begin molecule types
+		#PLASMIDS
+		plasmid_sensor()				#Codes for T7RNAP-LBD/YFP reporter mRNA
+		plasmid_reporter(p,P~U~B)		#Codes for RFP once T7RNAP w/ estrogen binds its promoter
+										#Promoter: (unbound or bound to T7RNAP)
+		
+		#Estrogen
+		E(S~U~B,L~I~O)					#Estrogen. State: (unbound or bound to LBD)
+										#Location: (inside or outside cell)
+										
+		#mRNA
+		mRNA_T7RNAP()					#mRNA which is translated into T7RNAP-LBD protein and YFP
+		mRNA_RFP()						#mRNA which is translated into RFP reporter
+		
+		#Protein
+		protein_YFP()					#YFP protein. Will tell you if the sensor plasmid is actually being transcribed
+		protein_RFP()					#RFP protein. Will report if estrogen has been detected by the cell
+		protein_T7(p,E~U~B)				#T7RNAP-LBD. Estrogen: (unbound or bound). Can attach to promoter once its bound	
+	end molecule types
+
+	begin seed species
+		#Molecules which can bind/take on different states
+		E(S~U,L~O)															estrogen_out			#Unbound estrogen outside the cell
+		E(S~U,L~I)															estrogen_in				#Unbound estrogen inside the cell
+		
+		plasmid_reporter(p,P~U)												plas_reporter			#Unbound reporter plasmid
+		
+		protein_T7(p,E~U)													prot_t7_unbound			#Unbound T7RNAP-LBD in the cell
+		protein_T7(p,E!1~B).E(S!1~B,L~I)									prot_t7_bound			#T7RNAP-LBD that is bound to estrogen. 
+																									#Can now bind to promoter on reporter plasmid
+		
+		protein_T7(p!2,E!1~B).E(S!1~B,L~I).plasmid_reporter(p!2,P~B)		plas_reporter_t7_bound	#Reporter plasmid that is bound to t7
+		
+		#'Simple' Molecules (Cannot bind or take on different states)
+		plasmid_sensor()					plas_sensor		
+		mRNA_T7RNAP()						mrna_t7rnap
+		mRNA_RFP()							mrna_rfp
+		protein_YFP()						prot_yfp
+		protein_RFP()						prot_rfp
+	end seed species
+
+	begin observables
+		Molecules	Estrogen_out					E(S~U,L~O)
+		Molecules	Estrogen_in						E(S~U,L~I)
+		
+		Molecules	Plasmid_reporter				plasmid_reporter(p,P~U)
+		
+		Molecules	Prot_t7_unbound					protein_T7(p,E~U)
+		Molecules	Prot_t7_bound					protein_T7(p,E!1~B).E(S!1~B,L~I)
+		
+		Molecules	Plasmid_reporter_t7_bound		protein_T7(p!2,E!1~B).E(S!1~B,L~I).plasmid_reporter(p!2,P~B)
+		
+		#'Simple' Molecules
+		Molecules	Plasmid_sensor					plasmid_sensor()
+		Molecules	MRNA_T7RNAP						mRNA_T7RNAP()
+		Molecules	MRNA_RFP						mRNA_RFP()
+		Molecules	Protein_YFP						protein_YFP()
+		Molecules	Protein_RFP						protein_RFP()
+	end observables
+
+	begin functions
+		estro_in() = k_estrogen * (Estrogen_out)/(Estrogen_out + Estrogen_in)
+		estro_out() = k_estrogen * (Estrogen_in)/(Estrogen_out + Estrogen_in)
+		estrogen_assoc() = k_estrogen_assoc
+		estrogen_disassoc() = k_estrogen_disassoc
+		
+		mRNA_sensor_synth() = k_mrna_t7rnap_synth * Plasmid_sensor #Rate of mRNA synthesis for sensor mRNA is based on total number of 
+																   #sensor plasmids and the rate of transcription.
+		mRNA_sensor_deg() = k_mrna_t7rnap_deg
+		mRNA_rfp_synth() = Plasmid_reporter_t7_bound * k_mrna_rfp_synth #Rate of mRNA RFP synthesis is based on number of reporter plasmids
+																		#bound to T7 w/ estrogen and the rate of transcription.
+		mRNA_rfp_deg() = k_mrna_rfp_deg
+		
+		prot_yfp_synth() = MRNA_T7RNAP * k_prot_yfp_synth 	#Rate of YFP protein synthesis is based on total number of mRNA from which 
+															#it can be made and the rate of translation.
+		prot_yfp_deg() = k_prot_yfp_deg
+		prot_t7rnap_synth() = MRNA_T7RNAP * k_prot_t7rnap_synth
+		prot_t7rnap_deg() = k_prot_t7rnap_deg
+		prot_rfp_synth() = MRNA_RFP * k_prot_rfp_synth #Rate of RFP protein synthesis is based on total number of mRNA RFP and rate of translation.
+		prot_rfp_deg() = k_prot_rfp_deg
+		
+		t7rnap_reporter_assoc() = k_t7rnap_reporter_assoc
+		t7rnap_reporter_disassoc() = k_t7rnap_reporter_disassoc
+	end functions
+
+	begin reaction rules
+		#Describes estrogen entering and leaving cell. Rules 1, 2.
+		E(S~U,L~O) <-> E(S~U,L~I) estro_in(), estro_out()
+		#Describes rate at which mRNA T7RNAP/YFP is transcribed. Rules 3, 4.
+		0 <-> mRNA_T7RNAP() mRNA_sensor_synth(), mRNA_sensor_deg()
+		#Describes rate at which YFP is translated from mRNA T7RNAP/YFP, and YFP protein degrades. Rules 5, 6.
+		0 <-> protein_YFP() prot_yfp_synth(), prot_yfp_deg()
+		#Describes rate at which T7-RNAP LBD is translated from mRNA T7RNAP/YFP, and the rate at which it degrades. Rules 7, 8.
+		0 <-> protein_T7(p,E~U) prot_t7rnap_synth(), prot_t7rnap_deg()
+		#Describes rate of estrogen association/disassociation to T7RNAP LBD. Rules 9, 10.
+		protein_T7(p,E~U) + E(S~U,L~I) <-> protein_T7(p,E!1~B).E(S!1~B,L~I) estrogen_assoc(), estrogen_disassoc()
+		#Describes that rate at which the T7RNAP w/ bound Estrogen binds/unbinds to promotor site on Reporter Plasmid. Rules 11, 12.
+		protein_T7(p,E!1~B).E(S!1~B,L~I) + plasmid_reporter(p,P~U) <-> protein_T7(p!2,E!1~B).E(S!1~B,L~I).plasmid_reporter(p!2,P~B) t7rnap_reporter_assoc(), t7rnap_reporter_disassoc()
+		#Describes the rate at which mRNA RFP is made from the reporter plasmid and the rate which it degrades. Rules 13, 14.
+		0 <-> mRNA_RFP() mRNA_sensor_synth(), mRNA_sensor_deg()
+		#Describes the rate at which protein RFP is made mRNA RFP, and the rate at which it degrades. Rules 15, 16.
+		0 <-> protein_RFP() prot_rfp_synth(), prot_rfp_deg()
+	end reaction rules
+end model 
+
+## actions ##
+#construct reaction network
+generate_network({overwrite=>1})
+#kinetics
+saveConcentrations();
+simulate({method=>"ode",suffix=>"ode",t_end=>10800,n_steps=>10800,atol=>1e-12,rtol=>1e-12,sparse=>1})
+resetConcentrations();
+#Need small concentrations to make ssa useful
+#setParameter("plas_sensor",2.0e-02)
+#simulate({method=>"ode",suffix=>"ode",t_end=>3600,n_steps=>3600,atol=>1e-12,rtol=>1e-12,sparse=>1})

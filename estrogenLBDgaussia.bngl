@@ -1,0 +1,194 @@
+begin model
+	begin parameters
+		estrogen_out						0	#Initial concentration of unbound estrogen outside the cell
+		estrogen_in							0	#Initial concentration of unbound estrogen inside the cell
+		
+		coelenterazine_in					0	#Initial concentration of unbound coelenterazine outside the cell
+		coelenterazine_out					0	#Initial concentration of unbound coelenterazine inside the cell
+		coelenterazine_gaussia				0	#Initial concenteration of gaussia (enzyme) bound to coelenterazine (substrate)
+		coelenteramide						0	#Initial concentration of waste product coelenteramide
+		
+		light								0	#Amount of light produced by gaussia - coelenterazine reaction
+		
+		prot_t7_unbound						0	#Initial concentration of unbound T7RNAP-LBD
+		prot_t7_bound						0	#Initial concentration of T7RNAP-LBD bound to estrogen
+		
+		plas_reporter						0	#Initial concentration of reporter plasmid
+		plas_reporter_t7_bound				0	#Initial concentration of t7 bound to the report plasmid
+		
+		#'Simple' Molecules
+		plas_sensor							4.0e-02		#Initial concentration of sensor plasmid
+		mrna_t7rnap							1.5e-03		#Initial concentration of mRNA for T7RNAP-LBD/YFP
+		mrna_gaussia						0			#Initial concentration of mRNA for Gaussia
+		prot_yfp							0			#Initial concentration of YFP protein
+		prot_gaussia						0			#Initial concentration of Gaussia protein
+		
+		#Rate constants
+		k_estrogen							1.7e-02		#Rate based on permeability of estrogen to the cell membrane
+		k_estrogen_assoc					0			#Rate at which estrogen binds to LBD of T7RNAP
+		k_estrogen_disassoc					0			#Rate at which estrogen unbinds from LBD of T7RNAP
+		
+		k_coelenterazine					0			#Rate at which coelenterazine crosses cell membrane
+		k_coelenterazine_gaussia_assoc		0			#Rate at which gaussia binds to coelenterazine
+		k_coelenterazine_gaussia_disassoc	0			#Rate at which gaussia unbinds to coelenterazine
+		
+		k_light_synth						0	#Rate at which light is produced by gaussia - coelenterazine reaction (and therefore rate of coelenteramide production)
+		k_light_deg							0	#Rate at which light produced by gaussia - coelenterazine reaction degrades
+		
+		k_mrna_t7rnap_synth					0	#Rate based on ability of sensor plasmid to transcribe mRNA for T7RNAP-LBD and YFP
+		k_mrna_t7rnap_deg					0	#Rate at which mRNA for T7RNAP-LBD and YFP degrade
+		k_mrna_gaussia_synth				0	#Rate at which mRNA Gaussia is made from reporter plasmid with T7RNAP bound to the promotor
+		k_mrna_gaussia_deg					0	#Rate at which mRNA Gaussia degrades
+		
+		k_prot_yfp_synth					0	#Rate at which YFP protein is synthesized from mRNA T7RNAP-LBD and YFP
+		k_prot_yfp_deg						0	#Rate at which YFP protein degrades
+		k_prot_t7rnap_synth					0	#Rate at which T7RNAP LBD is synthesized from mRNA T7RNAP-LBD and YFP
+		k_prot_t7rnap_deg					0	#Rate at which T7RNAP LBD degrades
+		k_prot_gaussia_synth				0	#Rate at which Gaussia protein is made from Gaussia mRNA
+		k_prot_gaussia_deg					0	#Rate at which Gaussia protein degrades
+		
+		k_t7rnap_reporter_assoc				0	#Rate at which T7RNAP w/ bound Estrogen binds to promotor on reporter plasmid
+		k_t7rnap_reporter_disassoc			0	#Rate at which T7RNAP w/ bound Estrogen unbinds from promotor on reporter plasmid
+	end parameters
+
+	begin molecule types
+		#PLASMIDS
+		plasmid_sensor()				#Codes for T7RNAP-LBD/YFP reporter mRNA
+		plasmid_reporter(p,P~U~B)		#Codes for Gaussia once estrogen activated T7RNAP binds its promoter
+										#Promoter: (unbound or bound to T7RNAP)
+
+		#Estrogen
+		E(S~U~B,L~I~O)					#Estrogen. State: (unbound or bound to LBD)
+										#Location: (inside or outside cell)
+			
+		#Coelenterazine
+		C(S~U~B,L~I~O)					#Coelenterazine. State: (unbound or bound to Gaussia)
+										#Location: (inside or outside cell)
+		coelenteramide()				#Waste product coelenteramide
+										
+		#mRNA
+		mRNA_T7RNAP()					#mRNA which is translated into T7RNAP-LBD protein and YFP
+		mRNA_Gaussia()					#mRNA which is translated into Gaussia reporter
+		
+		#Protein
+		protein_YFP()					#YFP protein. Will tell you if the sensor plasmid is actually being transcribed
+		protein_Gaussia(A~U~B)			#Gaussia protein. Will report if estrogen has been detected by the cell
+										#Active Site (where coelenterazine binds): (bound or unbound)
+		protein_T7(p,E~U~B)				#T7RNAP-LBD. Estrogen: (unbound or bound). Can attach to promoter once its bound	
+		
+		#Light
+		light()							#Light produced by gaussia-coelenterazine reaction
+	end molecule types
+
+	begin seed species
+		#Molecules which can bind/take on different states
+		E(S~U,L~O)															estrogen_out			#Unbound estrogen outside the cell
+		E(S~U,L~I)															estrogen_in				#Unbound estrogen inside the cell
+		
+		C(S~U,L~O)															coelenterazine_in		#Unbound coelenterazine outside the cell
+		C(S~U,L~I)															coelenterazine_out		#Unbound coelenterazine inside the cell
+		
+		plasmid_reporter(p,P~U)												plas_reporter			#Unbound reporter plasmid
+		
+		protein_T7(p,E~U)													prot_t7_unbound			#Unbound T7RNAP-LBD in the cell
+		protein_T7(p,E!1~B).E(S!1~B,L~I)									prot_t7_bound			#T7RNAP-LBD that is bound to estrogen. 
+																									#Can now bind to promoter on reporter plasmid.
+		
+		protein_T7(p!2,E!1~B).E(S!1~B,L~I).plasmid_reporter(p!2,P~B)		plas_reporter_t7_bound	#Reporter plasmid that is bound to t7
+		
+		protein_Gaussia(A~U)												prot_gaussia			#Unbound Gaussia
+		protein_Gaussia(A!1~B).C(S!1~B,L~I)									coelenterazine_gaussia	#Coelenterazine bound to gaussia's active site.
+		
+		#'Simple' Molecules
+		plasmid_sensor()					plas_sensor		
+		mRNA_T7RNAP()						mrna_t7rnap
+		mRNA_Gaussia()						mrna_gaussia
+		protein_YFP()						prot_yfp
+		light()								light
+		coelenteramide()					coelenteramide
+	end seed species
+
+	begin observables
+		Molecules	Estrogen_out					E(S~U,L~O)
+		Molecules	Estrogen_in						E(S~U,L~I)
+		
+		Molecules	Coelenterazine_out				C(S~U,L~O)
+		Molecules	Coelenterazine_in				C(S~U,L~I)
+		
+		Molecules	Plasmid_reporter				plasmid_reporter(p,P~U)
+		
+		Molecules	Prot_t7_unbound					protein_T7(p,E~U)
+		Molecules	Prot_t7_bound					protein_T7(p,E!1~B).E(S!1~B,L~I)
+		
+		Molecules	Prot_Gaussia_unbound			protein_Gaussia(A~U)
+		Molecules	Prot_Gaussia_bound				protein_Gaussia(A!1~B).C(S!1~B,L~I)
+		
+		Molecules	Plasmid_reporter_t7_bound		protein_T7(p!2,E!1~B).E(S!1~B,L~I).plasmid_reporter(p!2,P~B)
+		
+		#'Simple' Molecules
+		Molecules	Plasmid_sensor					plasmid_sensor()
+		Molecules	MRNA_T7RNAP						mRNA_T7RNAP()
+		Molecules	MRNA_Gaussia					mRNA_Gaussia()
+		Molecules	Protein_YFP						protein_YFP()
+		Molecules	Coelenteramide					coelenteramide()
+		Molecules	Light							light()
+	end observables
+
+	begin functions
+		estro_in() = k_estrogen * (Estrogen_out)/(Estrogen_out + Estrogen_in)
+		estro_out() = k_estrogen * (Estrogen_in)/(Estrogen_out + Estrogen_in)
+		estrogen_assoc() = k_estrogen_assoc
+		estrogen_disassoc() = k_estrogen_disassoc
+		
+		coelenter_in() = k_coelenterazine * (Coelenterazine_out)/(Coelenterazine_out + Coelenterazine_in)
+		coelenter_out() = k_coelenterazine * (Coelenterazine_in)/(Coelenterazine_out + Coelenterazine_in)
+		coelenterazine_assoc() = k_coelenterazine_gaussia_assoc
+		coelenterazine_disassoc() = k_coelenterazine_gaussia_disassoc
+		
+		light_synth() = k_light_synth
+		light_deg() = k_light_deg
+		
+		mRNA_sensor_synth() = k_mrna_t7rnap_synth * Plasmid_sensor #Rate of mRNA synthesis for sensor mRNA is based on total number of sensor plasmids and the rate of transcription.
+		mRNA_sensor_deg() = k_mrna_t7rnap_deg
+		mRNA_gaussia_synth() = Plasmid_reporter_t7_bound * k_mrna_gaussia_synth #Rate of mRNA Gaussia synthesis is based on number of reporter plasmids bound to T7 w/ estrogen and the rate of transcription.
+		mRNA_gaussia_deg() = k_mrna_gaussia_deg
+		
+		prot_yfp_synth() = MRNA_T7RNAP * k_prot_yfp_synth 	#Rate of YFP protein synthesis is based on total number of mRNA from which it can be made and the rate of translation.
+		prot_yfp_deg() = k_prot_yfp_deg
+		prot_t7rnap_synth() = MRNA_T7RNAP * k_prot_t7rnap_synth
+		prot_t7rnap_deg() = k_prot_t7rnap_deg
+		prot_gaussia_synth() = MRNA_Gaussia * k_prot_gaussia_synth #Rate of Gaussia protein synthesis is based on total number of mRNA Gaussia and rate of translation.
+		prot_gaussia_deg() = k_prot_gaussia_deg
+		
+		t7rnap_reporter_assoc() = k_t7rnap_reporter_assoc
+		t7rnap_reporter_disassoc() = k_t7rnap_reporter_disassoc
+	end functions
+
+	begin reaction rules
+		#Describes estrogen entering and leaving cell. Rules 1, 2.
+		E(S~U,L~O) <-> E(S~U,L~I) estro_in(), estro_out()
+		#Describes rate at which mRNA T7RNAP/YFP is transcribed. Rules 3, 4.
+		0 <-> mRNA_T7RNAP() mRNA_sensor_synth(), mRNA_sensor_deg()
+		#Describes rate at which YFP is translated from mRNA T7RNAP/YFP, and YFP protein degrades. Rules 5, 6.
+		0 <-> protein_YFP() prot_yfp_synth(), prot_yfp_deg()
+		#Describes rate at which T7-RNAP LBD is translated from mRNA T7RNAP/YFP, and the rate at which it degrades. Rules 7, 8.
+		0 <-> protein_T7(p,E~U) prot_t7rnap_synth(), prot_t7rnap_deg()
+		#Describes rate of estrogen association/disassociation to T7RNAP LBD. Rules 9, 10.
+		protein_T7(p,E~U) + E(S~U,L~I) <-> protein_T7(p,E!1~B).E(S!1~B,L~I) estrogen_assoc(), estrogen_disassoc()
+		#Describes that rate at which the T7RNAP w/ bound Estrogen binds/unbinds to promotor site on Reporter Plasmid. Rules 11, 12.
+		protein_T7(p,E!1~B).E(S!1~B,L~I) + plasmid_reporter(p,P~U) <-> protein_T7(p!2,E!1~B).E(S!1~B,L~I).plasmid_reporter(p!2,P~B) t7rnap_reporter_assoc(), t7rnap_reporter_disassoc()
+		#Describes the rate at which mRNA Gaussia is made from the reporter plasmid and the rate which it degrades. Rules 13, 14.
+		0 <-> mRNA_Gaussia() mRNA_sensor_synth(), mRNA_sensor_deg()
+		#Describes the rate at which protein Gaussia is made mRNA Gaussia, and the rate at which it degrades. Rules 15, 16.
+		0 <-> protein_Gaussia(A~U) prot_gaussia_synth(), prot_gaussia_deg()
+		#Describes coelenterazine entering and leaving cell. Rules 17, 18.
+		C(S~U,L~O) <-> C(S~U,L~I) coelenter_in(), coelenter_out()
+		#Describes rate at which Gaussia associates to and disassociates from coelenterazine. Rules 19, 20.
+		protein_Gaussia(A~U) + C(S~U,L~I) <-> protein_Gaussia(A!1~B).C(S!1~B,L~I) coelenterazine_assoc(), coelenterazine_disassoc()
+		#Describes the rate that light and coelenteramide are produced from the Gaussia-coelenterazine complex. Rule 21.
+		protein_Gaussia(A!1~B).C(S!1~B,L~I) -> light() + coelenteramide() light_synth()
+		#Describes light decay/disapation from cellular environment. Rule 22.
+		light() -> 0 light_deg()
+	end reaction rules
+
+end model 
